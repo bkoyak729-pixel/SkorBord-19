@@ -16,9 +16,13 @@ const server = http.createServer(async (req, res) => {
       }
 
       const response = await fetch(
-        "https://v3.football.api-sports.io/fixtures?live=all",
-        { headers: { "x-apisports-key": key } }
-      );
+  "https://api.sportsapi.app/v2/livescores?sport=football",
+  {
+    headers: {
+      "Authorization": `Bearer ${key}`
+    }
+  }
+);
 
       if (!response.ok) {
         throw new Error("API hatasi: " + response.status);
