@@ -2,40 +2,39 @@ const http = require("http");
 const fs = require("fs");
 const path = require("path");
 
-const PORT = process.env.PORT || 8080;
+const PORT = process.env.PORT || 8000;
+const API = "https://www.thesportsdb.com/api/v1/json/3";
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, "http://localhost");
 
   if (url.pathname === "/api/live") {
     try {
-      const key = process.env.SPORTS_API_KEY;
-
-      if (!key) {
-        throw new Error("API anahtari eksik");
-      }
+      const sport = url.searchParams.get("sport") || "Soccer";
 
       const response = await fetch(
-  "https://api.sportsapi.app/v2/livescores?sport=football",
-  {
-    headers: {
-      "Authorization": `Bearer ${key}`
-    }
-  }
-);
+        `${API}/eventsnextleague.php?id=4328`
+      );
 
       if (!response.ok) {
-        throw new Error("API hatasi: " + response.status);
+        throw new Error("API hatası: " + response.status);
       }
 
       const data = await response.json();
 
       res.writeHead(200, {
-        "Content-Type": "application/json"
+        "Content-Type": "application/json; charset=utf-8",
+        "Access-Control-Allow-Origin": "*"
       });
-      res.end(JSON.stringify(data));
+
+      res.end(JSON.stringify({
+        sport,
+        events: data.events || [],
+        source: "TheSportsDB",
+        live: false
+      }));
     } catch (error) {
-      res.writeHead(502, {
+      res.writeHead(500, {
         "Content-Type": "application/json"
       });
       res.end(JSON.stringify({ error: error.message }));
@@ -43,29 +42,22 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  if (url.pathname === "/") {
-    fs.readFile(
-      path.join(__dirname, "index.html"),
-      (err, data) => {
-        if (err) {
-          res.writeHead(500);
-          res.end("Dosya okunamadi");
-          return;
-        }
+  const filePath = path.join(__dirname, "index.html");
 
-        res.writeHead(200, {
-          "Content-Type": "text/html; charset=utf-8"
-        });
-        res.end(data);
-      }
-    );
-    return;
-  }
+  fs.readFile(filePath, (err, content) => {
+    if (err) {
+      res.writeHead(404);
+      res.end("Sayfa bulunamadı");
+      return;
+    }
 
-  res.writeHead(404);
-  res.end("Sayfa bulunamadi");
+    res.writeHead(200, {
+      "Content-Type": "text/html; charset=utf-8"
+    });
+    res.end(content);
+  });
 });
 
 server.listen(PORT, "0.0.0.0", () => {
-  console.log("SkorBord-19 sunucusu calisiyor");
+  console.log(`SkorBord-19 çalışıyor: ${PORT}`);
 });
