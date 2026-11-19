@@ -2,70 +2,114 @@
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SkorBord-19</title>
 <style>
-body{margin:0;background:#101522;color:white;font-family:Arial}
-header{background:#1c2940;padding:24px}
-h1{color:#30c995}
-nav{display:flex;gap:8px;padding:12px}
-button{background:#263650;color:white;border:0;border-radius:10px;padding:13px;cursor:pointer}
-button.active{background:#16a879}
-main{padding:20px}
-.card{background:#202d43;padding:18px;margin:12px 0;border-radius:14px}
-small{color:#aab4c5}
+*{box-sizing:border-box}
+body{margin:0;background:#091728;color:white;font-family:Arial,sans-serif}
+header{padding:22px;text-align:center;background:#10243c}
+h1{margin:0;color:#39e59b}
+small{color:#aab8c9}
+nav,.tabs{display:flex;gap:8px;padding:12px;overflow-x:auto}
+button{border:0;border-radius:10px;padding:12px;color:white;background:#203750;cursor:pointer;white-space:nowrap}
+button.active{background:#16a36d}
+main{padding:14px;max-width:850px;margin:auto}
+.match{background:#152b43;border-radius:14px;padding:16px;margin:12px 0}
+.match h3{margin:8px 0}
+.meta{font-size:12px;color:#aab8c9}
+#status{color:#c7d3e0;padding:15px}
 </style>
 </head>
 <body>
 <header>
-<h1>⚡ SKORBORD-19</h1>
-<p>Tüm sporlar, tüm skorlar!</p>
+<h1>⚡ SkorBord-19</h1>
+<small>Dünyadan spor karşılaşmaları</small>
 </header>
-<nav>
-<button class="active" onclick="load('live')">🔴 Canlı</button>
-<button onclick="load('past')">📊 Sonuçlar</button>
-<button onclick="load('next')">📅 Yaklaşan</button>
-</nav>
+<nav id="sports"></nav>
+<div class="tabs" id="tabs"></div>
 <main>
-<h2 id="heading">⚽ Maçlar</h2>
-<div id="matches">Yükleniyor...</div>
+<div id="status">Maçlar yükleniyor...</div>
+<div id="matches"></div>
 </main>
 <script>
-const base="https://www.thesportsdb.com/api/v1/json/123/";
-const league="4328";
-async function load(mode){
- const box=document.getElementById("matches");
- box.textContent="Yükleniyor...";
- document.getElementById("heading").textContent=
- mode==="next"?"Yaklaşan Maçlar":
- mode==="past"?"Son Sonuçlar":"Maçlar";
- const endpoint=mode==="next"?"eventsnextleague.php":
- "eventspastleague.php";
- try{
-  const response=await fetch(base+endpoint+"?id="+league);
-  if(!response.ok)throw Error("HTTP "+response.status);
-  const data=await response.json();
-  const events=data.events||[];
-  box.replaceChildren();
-  if(!events.length){box.textContent="Maç bulunamadı.";return;}
-  events.forEach(e=>{
-   const card=document.createElement("div");
-   card.className="card";
-   const title=document.createElement("h3");
-   title.textContent=(e.strHomeTeam||"?")+" "+
-    (e.intHomeScore??"-")+" : "+
-    (e.intAwayScore??"-")+" "+
-    (e.strAwayTeam||"?");
-   const detail=document.createElement("small");
-   detail.textContent=(e.dateEvent||"")+" "+(e.strTime||"");
-   card.append(title,detail);
-   box.appendChild(card);
-  });
- }catch(err){
-  box.textContent="Veriler alınamadı: "+err.message;
- }
+const API="https://www.thesportsdb.com/api/v1/json/123/";
+const sports=[
+{name:"⚽ Futbol",id:"Soccer",league:"4328"},
+{name:"🏀 Basketbol",id:"Basketball",league:null},
+{name:"🎾 Tenis",id:"Tennis",league:null},
+{name:"🏐 Voleybol",id:"Volleyball",league:null}
+];
+let selected=0,tab="next";
+const sportsEl=document.getElementById("sports");
+const tabsEl=document.getElementById("tabs");
+const matches=document.getElementById("matches");
+const status=document.getElementById("status");
+function drawButtons(){
+sportsEl.innerHTML="";
+sports.forEach((s,i)=>{
+const b=document.createElement("button");
+b.textContent=s.name;
+b.className=i===selected?"active":"";
+b.onclick=()=>{selected=i;drawButtons();load()};
+sportsEl.appendChild(b);
+});
+tabsEl.innerHTML="";
+[["live","🔴 Canlı"],["past","📊 Sonuçlar"],["next","📅 Yaklaşan"]].forEach(([id,label])=>{
+const b=document.createElement("button");
+b.textContent=label;
+b.className=tab===id?"active":"";
+b.onclick=()=>{tab=id;drawButtons();load()};
+tabsEl.appendChild(b);
+});
 }
-load("past");
+async function load(){
+matches.innerHTML="";
+status.textContent="Maçlar yükleniyor...";
+const sport=sports[selected];
+try{
+let url;
+if(sport.league){
+const endpoint=tab==="past"?"eventspastleague.php":"eventsnextleague.php";
+url=API+endpoint+"?id="+sport.league;
+}else{
+const endpoint=tab==="past"?"eventspastleague.php":"eventsnextleague.php";
+const leagues=await fetch(API+"search_all_leagues.php?s="+encodeURIComponent(sport.id));
+if(!leagues.ok)throw Error("Lig listesi alınamadı");
+const leagueData=await leagues.json();
+const league=(leagueData.countries||[]).find(x=>x.idLeague);
+if(!league)throw Error("Bu spor için lig bulunamadı");
+url=API+endpoint+"?id="+encodeURIComponent(league.idLeague);
+}
+const response=await fetch(url);
+if(!response.ok)throw Error("HTTP "+response.status);
+const data=await response.json();
+const events=data.events||[];
+if(!events.length){
+status.textContent="Bu bölümde maç bulunamadı.";
+return;
+}
+status.textContent=tab==="live"?"Canlı skor yerine mevcut fikstür gösteriliyor.":"";
+events.slice(0,30).forEach(e=>{
+const card=document.createElement("article");
+card.className="match";
+const meta=document.createElement("div");
+meta.className="meta";
+meta.textContent=[e.strLeague,e.dateEvent,e.strTime].filter(Boolean).join(" • ");
+const title=document.createElement("h3");
+title.textContent=(e.strHomeTeam||"Ev sahibi")+" - "+(e.strAwayTeam||"Deplasman");
+const score=document.createElement("div");
+score.textContent=e.intHomeScore!=null&&e.intAwayScore!=null
+?e.intHomeScore+" : "+e.intAwayScore
+:"Skor henüz yok";
+card.append(meta,title,score);
+matches.appendChild(card);
+});
+}catch(err){
+status.textContent="Veriler alınamadı: "+err.message;
+}
+}
+drawButtons();
+load();
 </script>
 </body>
 </html>
