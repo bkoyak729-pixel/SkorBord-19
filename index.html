@@ -2,27 +2,18 @@
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>SkorBord-19</title>
 <style>
-*{box-sizing:border-box}
-body{margin:0;background:#101522;color:white;font-family:Arial,sans-serif}
-header{background:#19243a;padding:22px 16px}
-h1{margin:0;color:#36d5a0;font-size:27px}
-header p{color:#aab5c9;margin-bottom:0}
-nav{display:flex;gap:8px;padding:12px;overflow:auto;background:#19243a}
-button{background:#26344d;color:white;border:0;padding:12px;border-radius:9px;cursor:pointer}
+body{margin:0;background:#101522;color:white;font-family:Arial}
+header{background:#1c2940;padding:24px}
+h1{color:#30c995}
+nav{display:flex;gap:8px;padding:12px}
+button{background:#263650;color:white;border:0;border-radius:10px;padding:13px;cursor:pointer}
 button.active{background:#16a879}
-main{padding:16px}
-h2{font-size:20px}
-.card{background:#1b263b;padding:15px;border-radius:12px;margin:12px 0}
-.score{font-size:23px;font-weight:bold;text-align:center;margin:12px}
-.muted{color:#aab5c9;font-size:13px}
-.tag{color:#36d5a0}
-section{display:none}
-section.show{display:block}
-input{width:100%;padding:13px;border-radius:9px;border:0;background:#26344d;color:white}
-footer{text-align:center;padding:25px;color:#8995aa}
+main{padding:20px}
+.card{background:#202d43;padding:18px;margin:12px 0;border-radius:14px}
+small{color:#aab4c5}
 </style>
 </head>
 <body>
@@ -30,73 +21,51 @@ footer{text-align:center;padding:25px;color:#8995aa}
 <h1>⚡ SKORBORD-19</h1>
 <p>Tüm sporlar, tüm skorlar!</p>
 </header>
-
 <nav>
-<button class="active" onclick="openTab('live',this)">🔴 Canlı</button>
-<button onclick="openTab('results',this)">📊 Sonuçlar</button>
-<button onclick="openTab('history',this)">📚 Geçmiş</button>
-<button onclick="openTab('sports',this)">🏆 Sporlar</button>
+<button class="active" onclick="load('live')">🔴 Canlı</button>
+<button onclick="load('past')">📊 Sonuçlar</button>
+<button onclick="load('next')">📅 Yaklaşan</button>
 </nav>
-
 <main>
-<section id="live" class="show">
-<h2>🔴 Canlı Maçlar</h2>
-<p class="muted">Örnek ekran – canlı veri bağlantısı henüz yapılmadı.</p>
-<div class="card">
-<span class="tag">FUTBOL</span>
-<div class="score">Galatasaray 2 - 1 Fenerbahçe</div>
-<p class="muted">Örnek maç · 75'</p>
-</div>
-<div class="card">
-<span class="tag">BASKETBOL</span>
-<div class="score">Takım A 82 - 76 Takım B</div>
-<p class="muted">Örnek maç</p>
-</div>
-</section>
-
-<section id="results">
-<h2>📊 Maç Sonuçları</h2>
-<div class="card">Henüz sonuç verisi bulunmuyor.</div>
-</section>
-
-<section id="history">
-<h2>📚 Maç Geçmişi</h2>
-<input id="search" placeholder="Takım veya maç ara..." oninput="filterHistory()">
-<div id="historyList">
-<div class="card">Henüz kayıtlı maç geçmişi yok.</div>
-</div>
-</section>
-
-<section id="sports">
-<h2>🏆 Spor Dalları</h2>
-<div class="card">⚽ Futbol</div>
-<div class="card">🏀 Basketbol</div>
-<div class="card">🎾 Tenis</div>
-<div class="card">🏐 Voleybol</div>
-<div class="card">🏈 Amerikan Futbolu</div>
-<div class="card">🏒 Buz Hokeyi</div>
-<div class="card">🥊 Boks</div>
-<div class="card">🏎️ Motor Sporları</div>
-<div class="card">🏓 Masa Tenisi</div>
-<div class="card">🏸 Badminton</div>
-</section>
+<h2 id="heading">⚽ Maçlar</h2>
+<div id="matches">Yükleniyor...</div>
 </main>
-
-<footer>SKORBORD-19 © 2026</footer>
-
 <script>
-function openTab(id,btn){
-document.querySelectorAll('section').forEach(s=>s.classList.remove('show'));
-document.getElementById(id).classList.add('show');
-document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
-btn.classList.add('active');
+const base="https://www.thesportsdb.com/api/v1/json/3/";
+const league="4328";
+async function load(mode){
+ const box=document.getElementById("matches");
+ box.textContent="Yükleniyor...";
+ document.getElementById("heading").textContent=
+ mode==="next"?"Yaklaşan Maçlar":
+ mode==="past"?"Son Sonuçlar":"Maçlar";
+ const endpoint=mode==="next"?"eventsnextleague.php":
+ "eventspastleague.php";
+ try{
+  const response=await fetch(base+endpoint+"?id="+league);
+  if(!response.ok)throw Error("HTTP "+response.status);
+  const data=await response.json();
+  const events=data.events||[];
+  box.replaceChildren();
+  if(!events.length){box.textContent="Maç bulunamadı.";return;}
+  events.forEach(e=>{
+   const card=document.createElement("div");
+   card.className="card";
+   const title=document.createElement("h3");
+   title.textContent=(e.strHomeTeam||"?")+" "+
+    (e.intHomeScore??"-")+" : "+
+    (e.intAwayScore??"-")+" "+
+    (e.strAwayTeam||"?");
+   const detail=document.createElement("small");
+   detail.textContent=(e.dateEvent||"")+" "+(e.strTime||"");
+   card.append(title,detail);
+   box.appendChild(card);
+  });
+ }catch(err){
+  box.textContent="Veriler alınamadı: "+err.message;
+ }
 }
-function filterHistory(){
-let q=document.getElementById('search').value.toLowerCase();
-document.querySelectorAll('#historyList .card').forEach(c=>{
-c.style.display=c.textContent.toLowerCase().includes(q)?'block':'none';
-});
-}
+load("past");
 </script>
 </body>
 </html>
